@@ -5,6 +5,10 @@ var States = [];
 var Actions = [];
 var Rewards = [];
 
+// Write headers to output file
+var fs = require('fs');
+fs.writeFile("insulinResults.txt", "StateGlucose, StateTime, ActionBasal, ActionBolus, Reward, Step, Episode\n");
+
 var glucoURL = "http://localhost:3000/dose";
 var request = require("sync-request");
 
@@ -59,7 +63,6 @@ for (ep = 0; ep < 7; ep++)
             insulinBolus = randomIntFromInterval(0, 5);
         }
 
-        // TODO: glucose NOT responding to carb injections
         // Simulate meals via carbohydrate injections at typical meal times
         if (breakfastTime == t || (t > breakfastTime && !breakfast))
         {
@@ -87,7 +90,7 @@ for (ep = 0; ep < 7; ep++)
         // The JSON object that stores action info
         var actionInfo = { "bolusInject": 0, "basalInject": 0 };
 
-        stateInfo.bloodGlucose = glucose;
+        stateInfo.bloodGlucose = Math.floor(glucose);
         stateInfo.lastMealSeen = timeSinceLastMeal;
 
         actionInfo.bolusInject = insulinBolus;
@@ -96,14 +99,15 @@ for (ep = 0; ep < 7; ep++)
         States.push(stateInfo);
         Actions.push(actionInfo);
 
-        // TODO: Add our actual reward function
         // Determine reward for this state
-        if (glucose >= 70 && glucose <= 130)
-            Rewards.push(1);
-        if (glucose < 70)
-            Rewards.push(-1);
-        if (glucose > 130)
-            Rewards.push(-1);
+        if (glucose > 70 && glucose < 100)
+            Rewards.push(Math.floor(Math.log(glucose - 70) - 4));
+        if (glucose <= 70)
+            Rewards.push(-1000);
+        if (glucose > 180)
+            Rewards.push(0);
+        if (glucose >= 100 && glucose <= 180)
+            Rewards.push(1); 
 
         // Prepare to post this timestep's data to the simulator
         var postdata = { "dose": insulinBasal + insulinBolus, "dt": 5, "index": curIndex, "time": 1440, "events": { "bolus": [{ "amt": insulinBolus, "start": t }], "basal": [{ "amt": insulinBasal, "start": t, "length": 600 }], "carb": [{ "amt": carbs, "start": 0, "length": 90 }] } };
@@ -118,8 +122,17 @@ for (ep = 0; ep < 7; ep++)
         // 5 minutes since last observation, thus 5 minutes added to last meal observation
         timeSinceLastMeal += 5;
     }
+    // Write this episode to file
+    for(var i = 0; i < States.length; i++)
+    {
+        fs.appendFile("insulinResults.txt", States[i].bloodGlucose + ", " + States[i].lastMealSeen + ", " + Actions[i].basalInject + ", " + Actions[i].bolusInject + ", " + Rewards[i] + ", " + i + ", " + ep + "\n");
+    }
+
     // Last post to end this simulation
     response = request('POST', 'http://localhost:3000/', { json: {} });
+    States = [];
+    Actions = [];
+    Rewards = [];
 }
 
 function randomIntFromInterval(min, max) {
