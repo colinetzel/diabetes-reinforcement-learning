@@ -15,7 +15,7 @@ var postdata = { "dose": 0.0, "dt": 5, "index": 0, "time": 1440, "events": { "bo
 var response;
 
 // Outer loop simulates different days; episodes
-for (ep = 0; ep < 1; ep++)
+for (ep = 0; ep < 7; ep++)
 {
     // Initial post to get glucose at start of day
     response = request('POST', glucoURL, { json: postdata });
@@ -44,16 +44,19 @@ for (ep = 0; ep < 1; ep++)
         var curIndex = t / 5;
         
         // Measured in International Units
-        var insulinBasal = randomIntFromInterval(0, 100);
+        var insulinBasal = 0;
+        if (t % 60 == 0)
+            insulinBasal = randomIntFromInterval(0, 5);
         var insulinBolus = 0;
         var carbs = 0;
 
         // If we observe a glucose spike, assume it was a meal. Bolus injection.
-        if (glucose - lastGlucose >= 10)
+        if (glucose - lastGlucose >= 4)
         {
+            //console.log(glucose + "-" + lastGlucose );
             // A change in bg that is larger than 10 mg/dl is considered a spike
             timeSinceLastMeal = 0;
-            insulinBolus = randomIntFromInterval(0, 100);
+            insulinBolus = randomIntFromInterval(0, 5);
         }
 
         // TODO: glucose NOT responding to carb injections
@@ -103,7 +106,7 @@ for (ep = 0; ep < 1; ep++)
             Rewards.push(-1);
 
         // Prepare to post this timestep's data to the simulator
-        var postdata = { "dose": insulinBasal + insulinBolus, "dt": 5, "index": curIndex, "time": 1440, "events": { "bolus": [{ "amt": insulinBolus, "start": t }], "basal": [{ "amt": insulinBasal, "start": t, "length": 600 }], "carb": [{ "amt": carbs, "start": t, "length": 90 }] } };
+        var postdata = { "dose": insulinBasal + insulinBolus, "dt": 5, "index": curIndex, "time": 1440, "events": { "bolus": [{ "amt": insulinBolus, "start": t }], "basal": [{ "amt": insulinBasal, "start": t, "length": 600 }], "carb": [{ "amt": carbs, "start": 0, "length": 90 }] } };
 
         // Post this timestep and get result for next timestep
         response = request('POST', glucoURL, { json: postdata });
@@ -115,8 +118,13 @@ for (ep = 0; ep < 1; ep++)
         // 5 minutes since last observation, thus 5 minutes added to last meal observation
         timeSinceLastMeal += 5;
     }
+    // Last post to end this simulation
+    response = request('POST', 'http://localhost:3000/', { json: {} });
 }
 
 function randomIntFromInterval(min, max) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
+    var sum = 0;
+    for (var i = 0; i < 6; i++)
+        sum += Math.random() * (max - min + 1) + min;
+    return Math.floor(sum/6);    
 }
