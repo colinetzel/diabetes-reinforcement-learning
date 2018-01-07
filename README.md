@@ -25,4 +25,4 @@ Insulin feedback model was taken from:
 Effect of Insulin Feedback on Closed-Loop Glucose Control: A Crossover Study by Ruiz et al.
 https://www.ncbi.nlm.nih.gov/pubmed/23063039
 
-The simulator used in glucosym, located at: https://github.com/Perceptus/GlucoSym
+The simulator used is glucosym, located at: https://github.com/Perceptus/GlucoSym
